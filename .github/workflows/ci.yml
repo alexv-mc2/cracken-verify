@@ -1,0 +1,28 @@
+# Public repository: free GitHub-hosted runners are allowed here (no Actions minutes are billed for public repos).
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm test
+      - name: Every byte of every file in the sample bundle is detected
+        if: matrix.node == 24
+        run: CRACKEN_VERIFY_EXHAUSTIVE=1 node --test test/bundle.test.mjs
+      - name: verify.html is reproducible from source
+        run: |
+          npm run build
+          git diff --exit-code -- verify.html verify.html.sha256

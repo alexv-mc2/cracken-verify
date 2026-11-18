@@ -1,0 +1,28 @@
+{
+  "name": "cracken-verify",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline verifier for crAcken Prove auditor bundles (hash chain, Merkle inclusion, RFC 3161, OpenTimestamps).",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "cracken-verify": "./cli.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "vectors": "node test/make-vectors.mjs"
+  },
+  "dependencies": {
+    "@otskit/core": "0.2.0",
+    "asn1js": "4.0.0",
+    "fflate": "0.8.3",
+    "pkijs": "4.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.0"
+  }
+}

@@ -1,0 +1,34 @@
+cracken-verify
+Copyright (c) 2026 crAcken. Licensed under the MIT License (LICENSE), except where stated below.
+
+This product includes or is derived from the following third-party work:
+
+1. src/merkle.mjs — RFC 6962 inclusion proof verification, ported from sigstore-js
+   packages/verify/src/tlog/merkle.ts (https://github.com/sigstore/sigstore-js).
+   Copyright 2023 The Sigstore Authors. Licensed under the Apache License, Version 2.0
+   (LICENSES/Apache-2.0.txt). The file keeps its original licence header and is distributed
+   under Apache-2.0; the modifications are listed in the file header. sigstore-js ships no
+   NOTICE file of its own.
+
+2. Test vectors in test/merkle.test.mjs — transparency-dev/merkle
+   (https://github.com/transparency-dev/merkle), testonly/constants.go and proof/verify_test.go,
+   Copyright Google LLC, Apache License 2.0 (LICENSES/Apache-2.0.txt).
+
+3. src/canonical.mjs — independent port of the crAcken org-event-log v1 verifier, whose
+   writer/verifier envelope pattern was adapted from tauvin/auditrum, auditrum/hash_chain.py
+   (https://github.com/tauvin/auditrum), MIT License, Copyright (c) 2024.
+
+4. Bundled into verify.html (full licence texts are embedded in that file):
+   - pkijs 4.0.1 — BSD-3-Clause, Copyright (c) 2014 GlobalSign, (c) 2015-2019 Peculiar Ventures
+   - asn1js 4.0.0 — BSD-3-Clause, Copyright (c) 2014 GMO GlobalSign, (c) 2015-2022 Peculiar Ventures
+   - bytestreamjs 3.0.0 — BSD-3-Clause, Peculiar Ventures
+   - @peculiar/utils 4.1.1 — MIT
+   - @noble/hashes 2.4.0 — MIT, Paul Miller
+   - @otskit/core 0.2.0 — MIT
+   - fflate 0.8.3 — MIT, Arjun Barrett
+
+Not included: javascript-opentimestamps and opentimestamps-client (LGPL-3.0). Their design was
+read for ideas only; no code was copied. The README points to `ots verify` as an independent tool.
+
+Signed-note / checkpoint text format: C2SP tlog-checkpoint and signed-note specifications
+(https://github.com/C2SP/C2SP), as implemented by transparency-dev/formats (Apache-2.0); format only.

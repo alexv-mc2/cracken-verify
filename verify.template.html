@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://blockstream.info https://mempool.space">
+<meta name="referrer" content="no-referrer">
+<title>cracken-verify</title>
+<style>
+:root { --bg:#fbfbf9; --fg:#1c1d1f; --muted:#5d6168; --line:#d9dbde; --card:#ffffff; --pass:#1f7a3f; --fail:#b42318; --warn:#9a6700; --skip:#5d6168; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg:#141517; --fg:#ececee; --muted:#a3a7ae; --line:#33363b; --card:#1c1e21; --pass:#5cc883; --fail:#ff7b72; --warn:#e3b341; --skip:#a3a7ae; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+main { max-width: 52rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+h2 { font-size: 1.1rem; margin: 2rem 0 .5rem; }
+p, li { max-width: 46rem; }
+.muted { color: var(--muted); }
+form { display:grid; gap:1rem; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:1.25rem; }
+label { font-weight:600; display:block; margin-bottom:.25rem; }
+.hint { color:var(--muted); font-size:.875rem; font-weight:400; }
+input[type=text], textarea { width:100%; font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; padding:.5rem; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); }
+textarea { min-height:4.5rem; }
+input[type=file] { max-width:100%; }
+button { justify-self:start; font:inherit; font-weight:600; padding:.6rem 1.2rem; border-radius:8px; border:1px solid var(--fg); background:var(--fg); color:var(--bg); cursor:pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline:3px solid #4c8bf5; outline-offset:2px; }
+.checks { list-style:none; padding:0; margin:1rem 0; display:grid; gap:.5rem; }
+.checks li { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--skip); border-radius:6px; padding:.6rem .8rem; display:grid; grid-template-columns:auto 1fr; gap:.25rem .75rem; }
+.checks li.pass { border-left-color:var(--pass); } .checks li.fail { border-left-color:var(--fail); } .checks li.warn { border-left-color:var(--warn); }
+.badge { font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; min-width:6.5rem; }
+li.pass .badge { color:var(--pass); } li.fail .badge { color:var(--fail); } li.warn .badge { color:var(--warn); } li.skip .badge { color:var(--skip); }
+.detail { grid-column: 2; font-size:.8rem; color:var(--muted); overflow-wrap:anywhere; }
+.verdict { font-size:1.25rem; font-weight:700; margin:1.5rem 0 .25rem; }
+.verdict.pass { color:var(--pass); } .verdict.fail { color:var(--fail); } .verdict.incomplete { color:var(--warn); }
+pre { overflow:auto; font-size:.75rem; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:.75rem; }
+code { overflow-wrap:anywhere; }
+@media (max-width: 30rem) { .checks li { grid-template-columns: 1fr; } .detail { grid-column: 1; } }
+</style>
+</head>
+<body>
+<main>
+<h1>cracken-verify</h1>
+<p class="muted">Offline check of a crAcken Prove bundle. Everything runs in this page; nothing is sent anywhere unless you tick the block-header box. Same checks as the command-line tool in this repository.</p>
+
+<form id="form">
+  <div><label for="bundle">Prove bundle (.zip)</label><input id="bundle" type="file" accept=".zip,application/zip" required></div>
+  <div><label for="tsa-ca">TSA root certificate <span class="hint">optional; PEM or DER you downloaded yourself (for FreeTSA: freetsa.org/files/cacert.pem). Without it the pinned FreeTSA root fingerprint is used.</span></label><input id="tsa-ca" type="file" multiple></div>
+  <div><label for="key">crAcken checkpoint key <span class="hint">optional; the verifier key published on cracken.tech. The signature is a convenience, the anchors are the evidence.</span></label><input id="key" type="text" spellcheck="false" autocomplete="off" placeholder="cracken.tech/prove-key-…+xxxxxxxx+…"></div>
+  <div><label for="headers">Bitcoin block headers <span class="hint">optional; one line per block: height:80-byte header hex (from your own node: bitcoin-cli getblockheader &lt;hash&gt; false)</span></label><textarea id="headers" spellcheck="false"></textarea></div>
+  <div><label><input id="fetch" type="checkbox"> Fetch missing block headers from blockstream.info and mempool.space <span class="hint">(network; both must return the same header)</span></label></div>
+  <button type="submit">Verify</button>
+</form>
+
+<section id="result" aria-live="polite"></section>
+
+<h2>What this checks</h2>
+<ol>
+  <li>Every file in the zip matches the SHA-256 listed in <code>manifest.json</code>; nothing is missing or unlisted.</li>
+  <li>Every event in <code>events.jsonl</code> recomputes to its <code>row_hash</code> (crAcken org-event-log format v1) and links to the previous one, from seq 1 to the head.</li>
+  <li>The RFC 6962 inclusion path in <code>checkpoint.json</code> leads from that head to the checkpoint root.</li>
+  <li>The RFC 3161 token and the OpenTimestamps proof are over that root; their times say the root existed no later than then.</li>
+</ol>
+<p class="muted">What you still trust: the TSA root certificate you chose (revocation is not checked offline), the Bitcoin block headers you supplied or fetched, and this page's code (MIT, source and build in the repository; compare the SHA-256 of this file with the published one). crAcken's own signature is shown but not needed.</p>
+
+<details><summary>Third-party licences</summary><pre id="licences"></pre></details>
+</main>
+<!--LICENCES-->
+<script>
+/*SCRIPT*/
+</script>
+</body>
+</html>
