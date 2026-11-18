@@ -118,3 +118,24 @@ test("known keys: the published key format is accepted; a known key that did not
   const r2 = await verifyBundle(b.zip, { ...b.options, verifierKey: undefined, knownKeys: [{ verifier_key: b.key.verifierKey }] });
   assert.equal(r2.checks.find((c) => c.id === "checkpoint.signature").status, "pass");
 });
+
+test("checkpoint earlier than T: accepted when every event precedes the checkpoint, refused otherwise", async () => {
+  // Last synthetic event is recorded at 12:06:00.123456; the checkpoint at 13:00; T = 14:00 (nothing recorded in between).
+  const later = await buildBundle({ asOfUs: Date.parse("2026-11-01T14:00:00Z") * 1000 });
+  const r = await verifyBundle(later.zip, later.options);
+  assert.equal(r.result, "PASS", JSON.stringify(failed(r)));
+  assert.match(r.checks.find((c) => c.id === "checkpoint.binding").detail, /not covered by this bundle/);
+  assert.deepEqual(r.summary.uncovered_window, { from: "2026-11-01T13:00:00.000Z", to: "2026-11-01T14:00:00Z" });
+  // Same millisecond as the last event (µs beyond the note's ms precision) still counts as before the checkpoint.
+  const sameMs = await buildBundle({ recordedAt: "2026-11-01T12:06:00.123Z", asOfUs: Date.parse("2026-11-01T14:00:00Z") * 1000 });
+  assert.equal((await verifyBundle(sameMs.zip, sameMs.options)).result, "PASS");
+  // Events recorded after the checkpoint time are in the bundle: refused, with T before or after the checkpoint.
+  for (const asOfUs of [Date.parse("2026-11-01T14:00:00Z") * 1000, Date.parse("2026-11-01T12:02:00Z") * 1000]) {
+    const bad = await buildBundle({ recordedAt: "2026-11-01T12:03:00.000Z", asOfUs });
+    const rb = await verifyBundle(bad.zip, bad.options);
+    assert.equal(rb.result, "FAIL");
+    assert.match(rb.checks.find((c) => c.id === "checkpoint.binding").detail, /event recorded after the checkpoint time/);
+  }
+  // The default case (checkpoint after T) has no uncovered window.
+  assert.equal((await verifyBundle(b.zip, b.options)).summary.uncovered_window, undefined);
+});

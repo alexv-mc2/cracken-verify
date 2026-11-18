@@ -165,7 +165,8 @@ export function zip(files) {
 }
 
 /** Full synthetic bundle; returns the zip, the file map, the manifest fields and auditor options. */
-export async function buildBundle({ events = 6, leaves = 7, leafIndex = 4, otsPending = false, withKeyFile = true } = {}) {
+export async function buildBundle({ events = 6, leaves = 7, leafIndex = 4, otsPending = false, withKeyFile = true,
+  recordedAt = "2026-11-01T13:00:00.000Z", asOfUs = null } = {}) {
   const rows = await makeEvents(events);
   const head = rows[rows.length - 1];
   const leafList = [];
@@ -175,12 +176,11 @@ export async function buildBundle({ events = 6, leaves = 7, leafIndex = 4, otsPe
   }
   const root = await subtreeRoot(leafList);
   const proof = await inclusionProof(leafIndex, leafList);
-  const recordedAt = "2026-11-01T13:00:00.000Z";
   const key = await makeKey();
   const body = `cracken.tech/prove/v1\n${leaves}\n${toBase64(root)}\nrecorded_at ${recordedAt}\n`;
   const sig = new Uint8Array(await crypto.subtle.sign({ name: "Ed25519" }, key.privateKey, utf8(body)));
   const note = `${body}\n— ${key.name} ${toBase64(concat(key.keyHash, sig))}\n`;
-  const asOfUs = head.recorded_at_us - 30_000_000;
+  asOfUs ??= head.recorded_at_us - 30_000_000;
   const tsa = await makeTestTsa();
   const token = await makeToken(tsa, root, new Date("2026-11-01T13:00:05Z"));
   const { ots, header } = makeOts(root, { pending: otsPending });

@@ -53,7 +53,11 @@ node cli.mjs test/vectors/sample-bundle.zip --tsa-ca test/vectors/sample-tsa-roo
 5. **OpenTimestamps anchor.** `anchors/opentimestamps.ots` commits to the checkpoint root; replaying its
    operations gives the Merkle root of a Bitcoin block header at the attested height. Gives T_B (block
    time, ±2 h). A proof that is not yet in a block is reported as pending, not as a failure.
-6. **Conclusion.** All events up to the head existed no later than min(T_A, T_B). Any later change
+6. **Checkpoint time.** No event in the bundle was recorded after the checkpoint time. Normally the
+   checkpoint is the first one after T. If it is earlier than T (nothing was recorded between the last
+   checkpoint and T), the bundle passes and the report names the window from the checkpoint to T as
+   not covered by this bundle.
+7. **Conclusion.** All events up to the head existed no later than min(T_A, T_B). Any later change
    breaks the chain, the path or the anchor.
 
 The crAcken Ed25519 signature on the checkpoint is shown when a key is available (from `--key`, from
@@ -72,7 +76,8 @@ anchors are the evidence.
 - **This code.** It is small; read `src/`. `verify.html` is rebuilt from source in CI and must be
   byte-identical (`npm ci && npm run build && git diff --exit-code`).
 - **Not proven:** that crAcken recorded every event that happened (only that what was recorded was not
-  changed after the checkpoint), anything before the first anchored checkpoint, and the content of
+  changed after the checkpoint), that nothing was recorded between a checkpoint earlier than T and T,
+  anything before the first anchored checkpoint, and the content of
   `reconstruction.json` beyond its hash (it is crAcken's reading of the anchored events). This is not a
   qualified (eIDAS) time stamp.
 

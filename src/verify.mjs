@@ -172,8 +172,18 @@ export async function verifyBundle(zipBytes, options = {}) {
     const bad = [];
     if (head && (leaf.organization_id !== head.organization_id || leaf.head_seq !== head.seq || leaf.head_hash !== head.hash)) bad.push("leaf is not the chain head");
     if (manifest && (manifest.checkpoint_root !== checkpoint.root_hash || manifest.checkpoint_tree_size !== checkpoint.tree_size)) bad.push("manifest root/size differ");
-    if (manifest && manifest.as_of_us > recordedAtMs * 1000) bad.push("checkpoint is earlier than the as-of time");
-    add("checkpoint.binding", bad.length ? "fail" : "pass", "Checkpoint leaf is this chain's head; manifest and as-of agree", bad.join("; "));
+    // The note's recorded_at is in ms; an event of the same millisecond may carry up to 999 more µs.
+    const checkpointEndUs = recordedAtMs * 1000 + 999;
+    if (head && head.lastRecordedUs > checkpointEndUs) bad.push("an event recorded after the checkpoint time is in the bundle");
+    let window = "";
+    if (!bad.length && manifest && manifest.as_of_us > checkpointEndUs) {
+      // Normal when nothing was recorded between the last checkpoint and T: the bundle ends at that checkpoint.
+      window = `checkpoint ${summary.checkpoint.recorded_at} is earlier than the as-of time ${usToIso(manifest.as_of_us)}; `
+        + "every event in the bundle precedes it; anything recorded between the checkpoint and the as-of time is not covered by this bundle";
+      summary.uncovered_window = { from: summary.checkpoint.recorded_at, to: usToIso(manifest.as_of_us) };
+    }
+    add("checkpoint.binding", bad.length ? "fail" : "pass", "Checkpoint leaf is this chain's head; no event after the checkpoint time",
+      bad.length ? bad.join("; ") : window);
 
     // Signature: convenience only (the anchors are the evidence).
     const sigTitle = "crAcken Ed25519 signature on the checkpoint";

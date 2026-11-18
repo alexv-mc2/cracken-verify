@@ -39,7 +39,8 @@ sbom-to-cra): UTF-8, no whitespace, keys `^[a-z][a-z0-9_]{0,62}$` sorted bytewis
 Exactly these keys. `files` sorted by `path`, every file except `manifest.json` itself. `as_of_us` is the
 requested time T in microseconds since the Unix epoch. Every field is cross-checked: `organization_id`,
 `head_seq`, `head_hash` against the last event and the checkpoint leaf; `checkpoint_root` and
-`checkpoint_tree_size` against `checkpoint.json`; `as_of_us` against `reconstruction.json` and the checkpoint time.
+`checkpoint_tree_size` against `checkpoint.json`; `as_of_us` against `reconstruction.json` (and, when it is later
+than the checkpoint, it is reported as an uncovered window).
 
 ## events.jsonl
 
@@ -60,14 +61,22 @@ Hashes are lower-case hex without `\x`. Row 1 has `prev_hash` = 64 zeros; row n 
 ```
 
 - `note`: the stored signed note, byte for byte (`chain_checkpoints.note`). Its size and root must equal
-  `tree_size` and `root_hash`; it must carry `recorded_at`, which must not be earlier than `as_of_us`.
+  `tree_size` and `root_hash`; it must carry `recorded_at`. Every event in the bundle must have
+  `recorded_at_us` ≤ the checkpoint time (`recorded_at` in ms + 999 µs, because the note has ms precision).
 - `leaf`: the organisation's leaf in that checkpoint; it must be the last event (seq and `row_hash`).
   Leaf hash = `SHA-256(0x00 ‖ "cracken:prove-leaf:v1\n<org>\n<seq>\n<head hash>")`.
 - `inclusion_proof`: RFC 6962 audit path from `leaf_index` in a tree of `tree_size`, lowest level first.
 
-The export is cut at the first checkpoint after T: events after T up to that checkpoint's head are
-included (they are needed to reach the anchored root); the reconstruction uses only events with
+The export is cut at the first checkpoint at or after T: events after T up to that checkpoint's head
+are included (they are needed to reach the anchored root); the reconstruction uses only events with
 `recorded_at_us ≤ as_of_us`.
+
+If no checkpoint after T exists yet, the export may use the latest checkpoint before T, but only when
+the organisation recorded nothing after that checkpoint: the bundle then ends at the checkpoint, every
+event in it precedes the checkpoint time (and so precedes T). The verifier accepts this, reports the
+window from the checkpoint time to T as "not covered by this bundle" (`summary.uncovered_window`), and
+fails any bundle that contains an event recorded after the checkpoint time, whether T is before or
+after the checkpoint.
 
 ## reconstruction.json
 
