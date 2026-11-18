@@ -1,4 +1,4 @@
-# Public repository: free GitHub-hosted runners are allowed here (no Actions minutes are billed for public repos).
+# Linux CI runs on Ubicloud (crAcken rule 15.11: GitHub-hosted runners only for macOS jobs without an Ubicloud equivalent).
 name: ci
 on:
   push:
@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     strategy:
       matrix:
         node: [20, 22, 24]
